@@ -27,7 +27,6 @@ import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-import com.Blink.android.mainpage.BlinkMainActivity;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
 /**
@@ -51,10 +50,6 @@ public class GcmIntentService extends IntentService {
 	protected void onMessage(Context context, Intent intent) {
 		Log.i(TAG, "Received message");
 		Bundle bData = intent.getExtras();
-		// String message = bData.getString("message");
-		// String campaigndate = bData.getString("campaigndate");
-		// String title = bData.getString("title");
-		// String description = bData.getString("description");
 		generateNotification(context, bData);
 	}
 
@@ -64,12 +59,12 @@ public class GcmIntentService extends IntentService {
 		long when = System.currentTimeMillis();
 		NotificationManager nm = (NotificationManager) context
 				.getSystemService(Context.NOTIFICATION_SERVICE);
-		Intent ni = new Intent(context, BlinkMainActivity.class);
+		Intent ni = new Intent(context, MainActivity.class);
 		ni.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
 				| Intent.FLAG_ACTIVITY_SINGLE_TOP);
 		PendingIntent intent = PendingIntent.getActivity(context, 0, ni, 0);
 		Notification noti = new NotificationCompat.Builder(context)
-				.setContentTitle("Blink 通知").setContentText("點擊查看更多")
+				.setContentTitle("title").setContentText("text")
 				.setContentIntent(intent).setDefaults(Notification.DEFAULT_ALL)
 				.setSmallIcon(icon).setWhen(when).build(); // just an init ?
 		nm.notify(0, noti);
@@ -122,69 +117,20 @@ public class GcmIntentService extends IntentService {
 	// This is just one simple example of what you might choose to do with
 	// a GCM message.
 	private void sendNotification(Bundle extras) {
-		// - ev : done, event (活動) 單元；part 2 : 項目 id 是活動序號
-		// - et : done, event ticket (活動票券)；part 2 : 項目 id 是票券的活序號
-		// - mc : done, merchant card (店家卡)，part 2 : 店家卡 id 是 user 卡片代號
-		// - vt : vieshow ticket；電影票區塊的電影 item (暫定)
-		// - vs : done, 開啟威秀單元頁；配合 url 開啟電影頁
-		// - es : 開啟玉山單元頁；暫定不會有這 type (暫定)
-		// - bc : 開啟 Blink Coin webview
-		// (https://www.blink.com.tw/account/coin/app/)
-		/**
+
+		Log.d("sendNotification", extras.toString());
 		try {
 			Log.d("sendNotification", extras.toString());
 			String msg = extras.getString("message");
-			String inapp = extras.getString("inapp");
-			String url = extras.getString("url");
 			PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
 					new Intent(this, MainActivity.class).putExtra(
 							"FromNotification", true), 0);
-			if (url != null) {
-				if (url.length() > 0) {
-					Log.d("Notification", "url:" + url);
-					contentIntent = PendingIntent.getActivity(this, 0,
-							new Intent(this, WebViewWithCookie.class).putExtra(
-									"url", url), 0);
-				}
-			} else if (inapp.contains("ev")) {
-				String id = inapp.replace("ev|", "");
-				Log.d("Notification", "inapp:" + inapp + " ; id = " + id);
-				contentIntent = PendingIntent.getActivity(this, 0, new Intent(
-						this, EventActivity.class).putExtra("FromNotification",
-						true), 0);
 
-			} else if (inapp.contains("et")) {
-				String id = inapp.replace("et|", "");
-				contentIntent = PendingIntent.getActivity(this, 0, new Intent(
-						this, WalletActivity.class).putExtra(
-						"FromNotification", true), 0);
-
-			} else if (inapp.contains("mc")) {
-				String id = inapp.replace("mc|", "");
-				contentIntent = PendingIntent.getActivity(this, 0, new Intent(
-						this, WalletActivity.class).putExtra(
-						"FromNotification", true), 0);
-
-			} else if (inapp.contains("vs")) {
-				String id = inapp.replace("vs|", "");
-				contentIntent = PendingIntent.getActivity(this, 0, new Intent(
-						this, VieshowActivity.class).putExtra(
-						"FromNotification", true), 0);
-
-			} else if (inapp.contains("bc")) {
-				String id = inapp.replace("bc|", "");
-				contentIntent = PendingIntent.getActivity(this, 0, new Intent(
-						this, WalletBlinkCoinWebViewActivity.class).putExtra(
-						"FromNotification", true), 0);
-
-			}
-			mNotificationManager = (NotificationManager) this
-					.getSystemService(Context.NOTIFICATION_SERVICE);
 
 			NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(
 					this)
 					.setSmallIcon(R.drawable.ic_launcher)
-					.setContentTitle("BlinkWallet通知")
+					.setContentTitle("ezGCM Notification")
 					.setStyle(
 							new NotificationCompat.BigTextStyle().bigText(msg))
 					.setContentText(msg);
@@ -195,6 +141,5 @@ public class GcmIntentService extends IntentService {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		 **/
 	}
 }

@@ -18,7 +18,6 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -26,20 +25,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import de.greenrobot.event.EventBus;
-import tw.com.blink.blinklib.network.ApiCall;
-import tw.com.blink.blinklib.network.BlinkApi;
-import tw.com.blink.blinklib.network.BlinkApiRespondEvent;
-import tw.com.blink.blinklib.pref.Pref;
 
 /**
  * Created by Wesely on 2015/4/9.
  */
 public class BlinkGCM {
-	static EventBus eventBus;
-	// for GCM
-	String SENDER_ID = "993052024183";
+	// TODO: your api ID here
+	String SENDER_ID = "123456789123456789";
 	private static final String PROPERTY_APP_VERSION = "appVersion";
+	private static final String PREF_KEY = "just.a.pref.key";
+	private static final String GCM_REGISTERED = "gcm.registered";
+	private static final String GCM_ID = "gcm.id";
+	private static final String GCM_ACTIVE = "gcm.active";
 	static final int REQUEST_CODE_RECOVER_PLAY_SERVICES = 1001;
 
 	static final String TAG = "GCM Demo";
@@ -55,11 +52,10 @@ public class BlinkGCM {
 	public void prepareGCM(Context context) {
 		this.context = context;
 		prefs = getGcmPreferences(context);
-		if(prefs.getBoolean(Pref.PREF_BW_GCM_REGESTERED, false))
+		if(prefs.getBoolean(GCM_REGISTERED, false))
 			return;
 		editor = prefs.edit();
-		eventBus = EventBus.getDefault();
-		eventBus.register(this);
+
 		android_id = Settings.Secure.getString(context.getContentResolver(),
 				Settings.Secure.ANDROID_ID);
 		if (checkPlayServices()) {
@@ -69,9 +65,10 @@ public class BlinkGCM {
 			if (regid.isEmpty()) {
 				registerInBackground();
 			}
-		} else { //
+		} else {
+			// TODO: can handle it by yourself
 			Log.i(TAG, "No valid Google Play Services APK found.");
-			Toast.makeText(context, "需安裝GooglePlay服務才能有完善功能", Toast.LENGTH_SHORT)
+			Toast.makeText(context, "you need to install GooglePlay Service", Toast.LENGTH_SHORT)
 					.show();
 			Intent browserIntent = new Intent(
 					Intent.ACTION_VIEW,
@@ -94,7 +91,7 @@ public class BlinkGCM {
 			if (GooglePlayServicesUtil.isUserRecoverableError(status)) {
 				showErrorDialog(status);
 			} else {
-				Toast.makeText(context, "需安裝GooglePlay服務才能有完善功能",
+				Toast.makeText(context, "you need to install GooglePlay Service",
 						Toast.LENGTH_SHORT).show();
 			}
 			return false;
@@ -117,7 +114,7 @@ public class BlinkGCM {
 	private void storeRegistrationId(Context context, String regId) {
 		int appVersion = getAppVersion(context);
 		Log.i(TAG, "Saving regId on app version " + appVersion);
-		editor.putString(Pref.PREF_BW_GCM_REG_ID, regId);
+		editor.putString(GCM_ID, regId);
 		editor.putInt(PROPERTY_APP_VERSION, appVersion);
 		editor.commit();
 	}
@@ -133,7 +130,7 @@ public class BlinkGCM {
 	 */
 	private String getRegistrationId(Context context) {
 		final SharedPreferences prefs = getGcmPreferences(context);
-		String registrationId = prefs.getString(Pref.PREF_BW_GCM_REG_ID, "");
+		String registrationId = prefs.getString(GCM_ID, "");
 		if (registrationId.isEmpty()) {
 			Log.i(TAG, "Registration not found.");
 			return "";
@@ -182,14 +179,14 @@ public class BlinkGCM {
 
 					// Persist the regID - no need to register again.
 					storeRegistrationId(context, regid);
-					editor.putBoolean(Pref.PREF_BW_GCM_ACTIVE, true);
+					editor.putBoolean(GCM_ACTIVE, true);
 					editor.commit();
 				} catch (IOException ex) {
 					msg = "Error :" + ex.getMessage();
 					// If there is an error, don't just keep trying to register.
 					// Require the user to click a button again, or perform
 					// exponential back-off.
-					editor.putBoolean(Pref.PREF_BW_GCM_ACTIVE, false);
+					editor.putBoolean(GCM_ACTIVE, false);
 					editor.commit();
 				}
 				return msg;
@@ -250,7 +247,7 @@ public class BlinkGCM {
 	private SharedPreferences getGcmPreferences(Context context) {
 		// This sample app persists the registration ID in shared preferences,
 		// but how you store the regID in your app is up to you.
-		return new Pref(context).getSharedPref();
+		return context.getSharedPreferences(PREF_KEY, Context.MODE_PRIVATE);
 	}
 
 	private class GCMRegResult {
@@ -270,82 +267,17 @@ public class BlinkGCM {
 	@SuppressLint("InlinedApi")
 	private void sendRegistrationIdToBackend() {
 
-		Pref pref = new Pref(context);
 		if (regid == null)
 			return;
 		if (regid.length() < 1)
 			return;
 		Log.d("sendRegistrationIdToBackend", android.os.Build.MODEL);
 		Map<String, String> postData = new HashMap<String, String>();
-
-		if (pref.isLogin()) {
-			postData.put("token", pref.getToken());
-		} else {
-			postData.put("token", "");
-		}
 		postData.put("registration_id", regid);
-		if (pref.getSharedPref().getString(Pref.PREF_BW_GCM_ACTIVE,
-				"1") != null)
-			if (pref.getSharedPref().getString(
-					Pref.PREF_BW_GCM_ACTIVE, "1") == "1") {
-				postData.put("active", "1");
-				pref.getSharedPref().edit()
-						.putString(Pref.PREF_BW_GCM_ACTIVE, "1").commit();
-
-				Log.d("GCM_setting", "avtive = 1, because state = 1");
-			} else if (pref.getSharedPref().getString(
-					Pref.PREF_BW_GCM_ACTIVE, "1") == "0") {
-				postData.put("active", "0");
-				pref.getSharedPref().edit()
-						.putString(Pref.PREF_BW_GCM_ACTIVE, "0").commit();
-				Log.d("GCM_setting", "avtive = 0, because state = 0");
-			} else {
-				Log.d("GCM_setting", "pref=null");
-				postData.put("active", "1");
-				pref.getSharedPref().edit()
-						.putString(Pref.PREF_BW_GCM_ACTIVE, "1").commit();
-			}
-		postData.put("device_id", android_id);
-		postData.put("name", "TEMP");
-		// c.close();
-
+		postData.put("something", "else");
 		Log.e("GCM_POST_DATA", postData.toString());
-		new ApiCall(eventBus, BlinkApi.API_GCM_REGISTER).setData(postData).postJSON().execute();
+		//TODO: send postData to your server via your own API
 
 	}
 
-	@SuppressLint("InlinedApi")
-	public static void changeNotifyState(String state) {
-		Log.d("Main Activity-changeNotifyState", android.os.Build.MODEL);
-		Map<String, String> postData = new HashMap<String, String>();
-		if (new Pref(context).isLogin()) {
-			postData.put("token",
-					new Pref(context).getToken());
-		} else {
-			postData.put("token", "");
-		}
-
-		postData.put("registration_id", regid);
-		postData.put("active", state);
-		postData.put("device_id", android_id);
-		postData.put("name", android.os.Build.MODEL);
-		// c.close();
-
-		new ApiCall(eventBus, BlinkApi.API_GCM_REGISTER).setData(postData).postJSON().execute();
-		// localBus.post(new GCMRegResult(result));
-
-	}
-
-	public void onEvent(BlinkApiRespondEvent event) {
-		Log.d("GCM_result", event.result.toString());
-		try {
-			if(event.getJSONObject().getBoolean("success")){
-				editor = prefs.edit();
-				editor.putBoolean(Pref.PREF_BW_GCM_REGESTERED, true);
-				editor.commit();
-			}
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-	}
 }
